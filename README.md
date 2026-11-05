@@ -40,6 +40,10 @@ npm run dev
 
 El worker crea de forma idempotente su tabla e índice la primera vez que accede a la API.
 
+## Despliegue
+
+La rama `main` está conectada a **Cloudflare Workers Builds**. Cada commit ejecuta la comprobación de tipos y despliega el worker mostrando en Cloudflare el repositorio, la rama, el autor y el mensaje del commit. La ruta de producción es `danieta.com/listacompra*`.
+
 ## Android
 
 El proyecto de `android/` contiene una aplicación WebView que abre la URL pública. GitHub Actions compila un APK de depuración en cada commit y lo publica como artefacto del workflow.
