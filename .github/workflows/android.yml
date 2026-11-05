@@ -23,7 +23,15 @@ jobs:
           gradle-version: "8.10.2"
       - name: Compilar APK
         working-directory: android
-        run: gradle assembleDebug
+        run: |
+          for attempt in 1 2 3; do
+            gradle assembleDebug && exit 0
+            if [ "$attempt" -lt 3 ]; then
+              echo "La compilación falló; reintentando en 15 segundos..."
+              sleep 15
+            fi
+          done
+          exit 1
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
