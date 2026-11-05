@@ -21,19 +21,21 @@ h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.1rem); line-height: 1; letter-spac
 .list-option.active b { background: #24231f; color: #fff; }
 .list-option[data-list=mercadona].active b { background: #08783e; }
 .mercadona-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: #079447; box-shadow: 0 0 0 3px rgba(7,148,71,.13); }
-.add-form { display: flex; gap: 9px; margin-bottom: 31px; }
+.add-form { display: grid; grid-template-columns: minmax(0, 1fr) 120px 55px; gap: 9px; margin-bottom: 31px; }
 .add-form input, dialog input { width: 100%; border: 1px solid #dedcd5; background: #fff; border-radius: 17px; padding: 16px 18px; outline: none; box-shadow: 0 5px 25px rgba(35, 34, 30, .045); }
 .add-form input:focus, dialog input:focus { border-color: #24231f; box-shadow: 0 0 0 3px rgba(36, 35, 31, .08); }
-.add-form button { flex: 0 0 55px; border: 0; border-radius: 17px; background: #f3cf44; color: #24231f; font-size: 2rem; line-height: 1; box-shadow: 0 5px 20px rgba(191, 151, 0, .18); }
+.add-form button { border: 0; border-radius: 17px; background: #f3cf44; color: #24231f; font-size: 2rem; line-height: 1; box-shadow: 0 5px 20px rgba(191, 151, 0, .18); }
 h2 { margin: 0 0 12px; font-size: .84rem; letter-spacing: .08em; text-transform: uppercase; color: #77746d; }
 .items { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .item { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 12px 12px 12px 14px; border: 1px solid #e5e2da; border-radius: 16px; background: rgba(255,255,255,.85); box-shadow: 0 4px 20px rgba(35,34,30,.035); animation: appear .18s ease-out; }
 @keyframes appear { from { opacity: 0; transform: translateY(-5px); } }
-.item label { min-width: 0; font-size: 1.03rem; overflow-wrap: anywhere; }
+.item label { min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 8px; font-size: 1.03rem; overflow-wrap: anywhere; }
+.item-quantity { padding: 2px 8px; border-radius: 999px; background: #eeece5; color: #68655e; font-size: .78rem; font-weight: 750; white-space: nowrap; }
 .item input[type=checkbox] { appearance: none; width: 24px; height: 24px; border: 2px solid #bbb8b0; border-radius: 8px; display: grid; place-items: center; margin: 0; }
 .item input[type=checkbox]:checked { background: #f3cf44; border-color: #f3cf44; }
 .item input[type=checkbox]:checked::after { content: "✓"; font-size: 16px; font-weight: 900; }
-.item.completed label { color: #89867f; text-decoration: line-through; }
+.item.completed .item-name { color: #89867f; text-decoration: line-through; }
+.item.completed .item-quantity { opacity: .7; }
 .actions { display: flex; gap: 2px; }
 .icon-button { border: 0; background: transparent; color: #77746d; width: 34px; height: 34px; border-radius: 10px; font-size: 1rem; }
 .icon-button:hover { background: #f1efe9; color: #24231f; }
@@ -51,6 +53,7 @@ h2 { margin: 0 0 12px; font-size: .84rem; letter-spacing: .08em; text-transform:
 dialog { width: min(420px, calc(100% - 34px)); border: 0; border-radius: 21px; padding: 23px; box-shadow: 0 20px 70px rgba(0,0,0,.22); }
 dialog::backdrop { background: rgba(25,24,21,.35); backdrop-filter: blur(3px); }
 dialog h2 { color: #24231f; font-size: 1.05rem; letter-spacing: 0; text-transform: none; }
+dialog input + input { margin-top: 10px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 .dialog-actions button { border: 0; border-radius: 11px; padding: 10px 15px; background: #f3cf44; font-weight: 700; }
 .dialog-actions .quiet { background: #eeece5; }
@@ -59,6 +62,8 @@ dialog h2 { color: #24231f; font-size: 1.05rem; letter-spacing: 0; text-transfor
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 @media (max-width: 420px) {
   .shell { padding-inline: 16px; }
+  .add-form { grid-template-columns: minmax(0, 1fr) 88px 52px; gap: 6px; }
+  .add-form input { padding-inline: 13px; }
   .item { grid-template-columns: 30px 1fr auto; padding-inline: 11px 7px; gap: 7px; }
   .actions { gap: 0; }
   .icon-button { width: 32px; }

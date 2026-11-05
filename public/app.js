@@ -38,13 +38,14 @@ function itemElement(item) {
   const mercadonaLabel = item.mercadona ? 'Mover a General' : 'Mover a Mercadona';
   li.innerHTML = `
     <input type="checkbox" ${item.completed ? 'checked' : ''} aria-label="${item.completed ? 'Volver a pendientes' : 'Marcar como comprado'}">
-    <label></label>
+    <label><span class="item-name"></span>${item.quantity ? '<small class="item-quantity"></small>' : ''}</label>
     <span class="actions">
       <button class="icon-button mercadona-action${item.mercadona ? ' selected' : ''}" aria-label="${mercadonaLabel}" title="${mercadonaLabel}">${storeIcon}</button>
       <button class="icon-button edit" aria-label="Editar" title="Editar">✎</button>
       <button class="icon-button delete" aria-label="Eliminar" title="Eliminar">×</button>
     </span>`;
-  li.querySelector('label').textContent = item.name;
+  li.querySelector('.item-name').textContent = item.name;
+  if (item.quantity) li.querySelector('.item-quantity').textContent = item.quantity;
   li.querySelector('input').addEventListener('change', async (event) => {
     try {
       const body = await request(`/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ completed: event.target.checked }) });
@@ -109,6 +110,7 @@ function render() {
 function openEdit(item) {
   state.editingId = item.id;
   $('#edit-name').value = item.name;
+  $('#edit-quantity').value = item.quantity || '';
   $('#edit-dialog').showModal();
   $('#edit-name').focus();
 }
@@ -116,17 +118,24 @@ function openEdit(item) {
 $('#add-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const input = $('#item-name');
+  const quantityInput = $('#item-quantity');
   const name = input.value.trim();
+  const quantity = quantityInput.value.trim();
   if (!name) return;
   input.value = '';
+  quantityInput.value = '';
   try {
     const body = await request('/items', {
       method: 'POST',
-      body: JSON.stringify({ name, mercadona: state.activeList === 'mercadona' }),
+      body: JSON.stringify({ name, quantity: quantity || null, mercadona: state.activeList === 'mercadona' }),
     });
     state.items.unshift(body.item);
     render();
-  } catch (error) { input.value = name; toast(error.message); }
+  } catch (error) {
+    input.value = name;
+    quantityInput.value = quantity;
+    toast(error.message);
+  }
 });
 
 document.querySelectorAll('.list-option').forEach((button) => {
@@ -146,9 +155,13 @@ $('#purchased-toggle').addEventListener('click', () => {
 $('#edit-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const name = $('#edit-name').value.trim();
+  const quantity = $('#edit-quantity').value.trim();
   if (!name) return;
   try {
-    const body = await request(`/items/${state.editingId}`, { method: 'PATCH', body: JSON.stringify({ name }) });
+    const body = await request(`/items/${state.editingId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name, quantity: quantity || null }),
+    });
     updateItem(body.item);
     $('#edit-dialog').close();
     render();

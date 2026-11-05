@@ -35,6 +35,8 @@
       <form id="add-form" class="add-form">
         <label class="sr-only" for="item-name">Añadir un artículo</label>
         <input id="item-name" name="name" autocomplete="off" placeholder="Añadir a la lista general…" maxlength="120" required />
+        <label class="sr-only" for="item-quantity">Cantidad</label>
+        <input id="item-quantity" name="quantity" autocomplete="off" placeholder="Cantidad" maxlength="40" />
         <button type="submit" aria-label="Añadir artículo">+</button>
       </form>
 
@@ -61,6 +63,8 @@
       <form id="edit-form" method="dialog">
         <h2>Editar artículo</h2>
         <input id="edit-name" maxlength="120" required />
+        <label class="sr-only" for="edit-quantity">Cantidad</label>
+        <input id="edit-quantity" maxlength="40" placeholder="Cantidad (opcional)" />
         <div class="dialog-actions">
           <button value="cancel" class="quiet">Cancelar</button>
           <button id="save-edit" value="default">Guardar</button>
