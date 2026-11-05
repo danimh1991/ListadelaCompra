@@ -14,15 +14,27 @@
     <main class="shell">
       <header>
         <div>
-          <p class="eyebrow">MI LISTA</p>
-          <h1>Lista de la compra</h1>
+          <p id="list-eyebrow" class="eyebrow">MI LISTA</p>
+          <h1 id="list-title">Lista general</h1>
         </div>
         <span id="pending-count" class="count" aria-live="polite">0</span>
       </header>
 
+      <nav class="list-selector" aria-label="Seleccionar lista">
+        <button class="list-option active" type="button" data-list="general" aria-pressed="true">
+          <span>General</span>
+          <b id="general-count">0</b>
+        </button>
+        <button class="list-option" type="button" data-list="mercadona" aria-pressed="false">
+          <span class="mercadona-dot" aria-hidden="true"></span>
+          <span>Mercadona</span>
+          <b id="mercadona-count">0</b>
+        </button>
+      </nav>
+
       <form id="add-form" class="add-form">
         <label class="sr-only" for="item-name">Añadir un artículo</label>
-        <input id="item-name" name="name" autocomplete="off" placeholder="Añadir un artículo…" maxlength="120" required />
+        <input id="item-name" name="name" autocomplete="off" placeholder="Añadir a la lista general…" maxlength="120" required />
         <button type="submit" aria-label="Añadir artículo">+</button>
       </form>
 
@@ -31,8 +43,8 @@
         <ul id="pending-list" class="items"></ul>
         <div id="empty-state" class="empty" hidden>
           <span>✓</span>
-          <p>Todo comprado</p>
-          <small>Añade algo cuando lo necesites</small>
+          <p id="empty-title">Todo comprado</p>
+          <small id="empty-copy">Añade algo cuando lo necesites</small>
         </div>
       </section>
 

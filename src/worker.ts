@@ -8,6 +8,7 @@ type ItemRow = {
   name: string;
   quantity: string | null;
   completed: number;
+  mercadona: number;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -30,16 +31,30 @@ async function ensureSchema(db: D1Database): Promise<void> {
       name TEXT NOT NULL,
       quantity TEXT,
       completed INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
+      mercadona INTEGER NOT NULL DEFAULT 0 CHECK (mercadona IN (0, 1)),
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       completed_at TEXT
     )`).run();
+  const columns = await db.prepare("PRAGMA table_info(listacompra_items)").all<{ name: string }>();
+  if (!columns.results.some((column) => column.name === "mercadona")) {
+    try {
+      await db.prepare(`ALTER TABLE listacompra_items
+        ADD COLUMN mercadona INTEGER NOT NULL DEFAULT 0 CHECK (mercadona IN (0, 1))`).run();
+    } catch (error) {
+      // Another request may have completed the idempotent migration first.
+      const refreshed = await db.prepare("PRAGMA table_info(listacompra_items)").all<{ name: string }>();
+      if (!refreshed.results.some((column) => column.name === "mercadona")) throw error;
+    }
+  }
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_listacompra_items_completed
       ON listacompra_items (completed, created_at DESC)`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_listacompra_items_mercadona
+      ON listacompra_items (mercadona, completed, created_at DESC)`).run();
 }
 
 function publicItem(row: ItemRow) {
-  return { ...row, completed: Boolean(row.completed) };
+  return { ...row, completed: Boolean(row.completed), mercadona: Boolean(row.mercadona) };
 }
 
 async function api(request: Request, env: Env, path: string): Promise<Response> {
@@ -51,9 +66,14 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
 
   if (path === "/api/items" && request.method === "GET") {
     const status = url.searchParams.get("status") ?? "all";
-    const where = status === "pending" ? "WHERE completed = 0" : status === "purchased" ? "WHERE completed = 1" : "";
+    const list = url.searchParams.get("list") ?? "general";
+    const conditions: string[] = [];
+    if (status === "pending") conditions.push("completed = 0");
+    if (status === "purchased") conditions.push("completed = 1");
+    if (list === "mercadona") conditions.push("mercadona = 1");
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const result = await env.DB.prepare(
-      `SELECT id, name, quantity, completed, created_at, updated_at, completed_at
+      `SELECT id, name, quantity, completed, mercadona, created_at, updated_at, completed_at
        FROM listacompra_items ${where}
        ORDER BY completed ASC, CASE WHEN completed = 0 THEN created_at END DESC,
                 CASE WHEN completed = 1 THEN completed_at END DESC`
@@ -62,13 +82,13 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
   }
 
   if (path === "/api/items" && request.method === "POST") {
-    const body = await request.json<{ name?: string; quantity?: string | null }>();
+    const body = await request.json<{ name?: string; quantity?: string | null; mercadona?: boolean }>();
     const name = body.name?.trim();
     if (!name) return json({ error: "El nombre es obligatorio" }, 400);
     const result = await env.DB.prepare(
-      `INSERT INTO listacompra_items (name, quantity) VALUES (?, ?)
-       RETURNING id, name, quantity, completed, created_at, updated_at, completed_at`
-    ).bind(name, body.quantity?.trim() || null).first<ItemRow>();
+      `INSERT INTO listacompra_items (name, quantity, mercadona) VALUES (?, ?, ?)
+       RETURNING id, name, quantity, completed, mercadona, created_at, updated_at, completed_at`
+    ).bind(name, body.quantity?.trim() || null, Number(Boolean(body.mercadona))).first<ItemRow>();
     return json({ item: publicItem(result!) }, 201);
   }
 
@@ -77,23 +97,24 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
     const id = Number(match[1]);
     if (request.method === "PATCH") {
       const current = await env.DB.prepare(
-        "SELECT id, name, quantity, completed, created_at, updated_at, completed_at FROM listacompra_items WHERE id = ?"
+        "SELECT id, name, quantity, completed, mercadona, created_at, updated_at, completed_at FROM listacompra_items WHERE id = ?"
       ).bind(id).first<ItemRow>();
       if (!current) return json({ error: "Artículo no encontrado" }, 404);
 
-      const body = await request.json<{ name?: string; quantity?: string | null; completed?: boolean }>();
+      const body = await request.json<{ name?: string; quantity?: string | null; completed?: boolean; mercadona?: boolean }>();
       const name = body.name === undefined ? current.name : body.name.trim();
       if (!name) return json({ error: "El nombre es obligatorio" }, 400);
       const quantity = body.quantity === undefined ? current.quantity : body.quantity?.trim() || null;
       const completed = body.completed === undefined ? current.completed : Number(body.completed);
+      const mercadona = body.mercadona === undefined ? current.mercadona : Number(body.mercadona);
       const completedAt = completed ? (current.completed_at ?? new Date().toISOString()) : null;
 
       const result = await env.DB.prepare(
         `UPDATE listacompra_items
-         SET name = ?, quantity = ?, completed = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
+         SET name = ?, quantity = ?, completed = ?, mercadona = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?
-         RETURNING id, name, quantity, completed, created_at, updated_at, completed_at`
-      ).bind(name, quantity, completed, completedAt, id).first<ItemRow>();
+         RETURNING id, name, quantity, completed, mercadona, created_at, updated_at, completed_at`
+      ).bind(name, quantity, completed, mercadona, completedAt, id).first<ItemRow>();
       return json({ item: publicItem(result!) });
     }
 
