@@ -1,0 +1,11 @@
+{
+  "name": "Lista de la compra",
+  "short_name": "Compra",
+  "start_url": "/listacompra",
+  "scope": "/listacompra",
+  "display": "standalone",
+  "background_color": "#f8f7f3",
+  "theme_color": "#f8f7f3",
+  "icons": []
+}
+

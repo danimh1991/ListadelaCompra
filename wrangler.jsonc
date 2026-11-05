@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lista-de-la-compra",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-23",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/listacompra/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "site-creator-d1",
+      "database_id": "b362c006-6781-45c0-af46-b58e34e2793b"
+    }
+  ]
+}
+

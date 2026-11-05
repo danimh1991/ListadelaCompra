@@ -1,0 +1,50 @@
+:root {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #24231f;
+  background: #f8f7f3;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #fff 0, #f8f7f3 52%); }
+button, input { font: inherit; }
+button { cursor: pointer; }
+.shell { width: min(680px, 100%); margin: 0 auto; padding: calc(34px + env(safe-area-inset-top)) 22px calc(48px + env(safe-area-inset-bottom)); }
+header { display: flex; align-items: end; justify-content: space-between; margin-bottom: 28px; }
+.eyebrow { margin: 0 0 5px; color: #77746d; font-size: .72rem; font-weight: 800; letter-spacing: .16em; }
+h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.1rem); line-height: 1; letter-spacing: -.05em; }
+.count { min-width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: #24231f; color: #fff; font-weight: 800; }
+.add-form { display: flex; gap: 9px; margin-bottom: 31px; }
+.add-form input, dialog input { width: 100%; border: 1px solid #dedcd5; background: #fff; border-radius: 17px; padding: 16px 18px; outline: none; box-shadow: 0 5px 25px rgba(35, 34, 30, .045); }
+.add-form input:focus, dialog input:focus { border-color: #24231f; box-shadow: 0 0 0 3px rgba(36, 35, 31, .08); }
+.add-form button { flex: 0 0 55px; border: 0; border-radius: 17px; background: #f3cf44; color: #24231f; font-size: 2rem; line-height: 1; box-shadow: 0 5px 20px rgba(191, 151, 0, .18); }
+h2 { margin: 0 0 12px; font-size: .84rem; letter-spacing: .08em; text-transform: uppercase; color: #77746d; }
+.items { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.item { display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 12px 12px 12px 14px; border: 1px solid #e5e2da; border-radius: 16px; background: rgba(255,255,255,.85); box-shadow: 0 4px 20px rgba(35,34,30,.035); animation: appear .18s ease-out; }
+@keyframes appear { from { opacity: 0; transform: translateY(-5px); } }
+.item label { min-width: 0; font-size: 1.03rem; overflow-wrap: anywhere; }
+.item input[type=checkbox] { appearance: none; width: 24px; height: 24px; border: 2px solid #bbb8b0; border-radius: 8px; display: grid; place-items: center; margin: 0; }
+.item input[type=checkbox]:checked { background: #f3cf44; border-color: #f3cf44; }
+.item input[type=checkbox]:checked::after { content: "✓"; font-size: 16px; font-weight: 900; }
+.item.completed label { color: #89867f; text-decoration: line-through; }
+.actions { display: flex; gap: 2px; }
+.icon-button { border: 0; background: transparent; color: #77746d; width: 34px; height: 34px; border-radius: 10px; font-size: 1rem; }
+.icon-button:hover { background: #f1efe9; color: #24231f; }
+.empty { text-align: center; padding: 52px 10px; color: #77746d; }
+.empty span { display: inline-grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: #e8e5dc; font-size: 1.6rem; }
+.empty p { margin: 13px 0 3px; color: #46443e; font-weight: 750; }
+.purchased { margin-top: 30px; border-top: 1px solid #dedcd5; padding-top: 13px; }
+.section-toggle { width: 100%; display: flex; justify-content: space-between; padding: 10px 2px 16px; border: 0; background: transparent; color: #77746d; font-weight: 750; }
+.section-toggle i { display: inline-block; font-style: normal; transition: transform .2s; }
+.section-toggle[aria-expanded=true] i { transform: rotate(180deg); }
+dialog { width: min(420px, calc(100% - 34px)); border: 0; border-radius: 21px; padding: 23px; box-shadow: 0 20px 70px rgba(0,0,0,.22); }
+dialog::backdrop { background: rgba(25,24,21,.35); backdrop-filter: blur(3px); }
+dialog h2 { color: #24231f; font-size: 1.05rem; letter-spacing: 0; text-transform: none; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.dialog-actions button { border: 0; border-radius: 11px; padding: 10px 15px; background: #f3cf44; font-weight: 700; }
+.dialog-actions .quiet { background: #eeece5; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); padding: 11px 16px; border-radius: 12px; background: #24231f; color: white; opacity: 0; pointer-events: none; transition: .2s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+@media (max-width: 420px) { .shell { padding-inline: 16px; } .item { grid-template-columns: 30px 1fr auto; } }
+

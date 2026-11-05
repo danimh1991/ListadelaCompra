@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f8f7f3" />
+    <meta name="description" content="Una lista de la compra sencilla y rápida" />
+    <title>Lista de la compra</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="app.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div>
+          <p class="eyebrow">MI LISTA</p>
+          <h1>Lista de la compra</h1>
+        </div>
+        <span id="pending-count" class="count" aria-live="polite">0</span>
+      </header>
+
+      <form id="add-form" class="add-form">
+        <label class="sr-only" for="item-name">Añadir un artículo</label>
+        <input id="item-name" name="name" autocomplete="off" placeholder="Añadir un artículo…" maxlength="120" required />
+        <button type="submit" aria-label="Añadir artículo">+</button>
+      </form>
+
+      <section aria-labelledby="pending-title">
+        <h2 id="pending-title">Pendientes</h2>
+        <ul id="pending-list" class="items"></ul>
+        <div id="empty-state" class="empty" hidden>
+          <span>✓</span>
+          <p>Todo comprado</p>
+          <small>Añade algo cuando lo necesites</small>
+        </div>
+      </section>
+
+      <section id="purchased-section" class="purchased" aria-labelledby="purchased-title" hidden>
+        <button id="purchased-toggle" class="section-toggle" type="button" aria-expanded="false">
+          <span id="purchased-title">Comprados</span>
+          <span><b id="purchased-count">0</b> <i>⌄</i></span>
+        </button>
+        <ul id="purchased-list" class="items" hidden></ul>
+      </section>
+    </main>
+
+    <dialog id="edit-dialog">
+      <form id="edit-form" method="dialog">
+        <h2>Editar artículo</h2>
+        <input id="edit-name" maxlength="120" required />
+        <div class="dialog-actions">
+          <button value="cancel" class="quiet">Cancelar</button>
+          <button id="save-edit" value="default">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js" defer></script>
+  </body>
+</html>
+
