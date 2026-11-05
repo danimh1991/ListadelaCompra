@@ -66,11 +66,12 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
 
   if (path === "/api/items" && request.method === "GET") {
     const status = url.searchParams.get("status") ?? "all";
-    const list = url.searchParams.get("list") ?? "general";
+    const list = url.searchParams.get("list");
     const conditions: string[] = [];
     if (status === "pending") conditions.push("completed = 0");
     if (status === "purchased") conditions.push("completed = 1");
     if (list === "mercadona") conditions.push("mercadona = 1");
+    if (list === "general") conditions.push("mercadona = 0");
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const result = await env.DB.prepare(
       `SELECT id, name, quantity, completed, mercadona, created_at, updated_at, completed_at

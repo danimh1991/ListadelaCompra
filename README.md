@@ -5,7 +5,7 @@ Lista de la compra minimalista para Android y web, desplegada en Cloudflare Work
 ## Funciones
 
 - Añadir, editar y eliminar artículos.
-- Separar en la vista «Mercadona» los artículos que se compran allí, sin quitarlos de la lista general.
+- Mover artículos entre las listas excluyentes «General» y «Mercadona» sin crear duplicados.
 - Marcar artículos como comprados y recuperarlos desde la sección «Comprados».
 - API REST pública para integraciones externas.
 - PWA instalable y APK Android ligero.
@@ -17,7 +17,7 @@ URL base: `https://danieta.com/listacompra/api`
 
 | Método | Ruta | Uso |
 | --- | --- | --- |
-| `GET` | `/items?status=all\|pending\|purchased&list=general\|mercadona` | Listar artículos; `list=mercadona` filtra el subconjunto |
+| `GET` | `/items?status=all\|pending\|purchased&list=general\|mercadona` | Listar artículos; `list` filtra una lista concreta y, si se omite, devuelve ambas |
 | `POST` | `/items` | Crear: `{ "name": "Leche", "quantity": "2", "mercadona": true }` |
 | `PATCH` | `/items/:id` | Editar: `{ "name": "Leche entera", "completed": true, "mercadona": true }` |
 | `DELETE` | `/items/:id` | Eliminar |

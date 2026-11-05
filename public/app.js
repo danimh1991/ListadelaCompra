@@ -35,7 +35,7 @@ function updateItem(updated) {
 function itemElement(item) {
   const li = document.createElement('li');
   li.className = `item${item.completed ? ' completed' : ''}`;
-  const mercadonaLabel = item.mercadona ? 'Quitar de Mercadona' : 'Añadir a Mercadona';
+  const mercadonaLabel = item.mercadona ? 'Mover a General' : 'Mover a Mercadona';
   li.innerHTML = `
     <input type="checkbox" ${item.completed ? 'checked' : ''} aria-label="${item.completed ? 'Volver a pendientes' : 'Marcar como comprado'}">
     <label></label>
@@ -58,7 +58,7 @@ function itemElement(item) {
       const body = await request(`/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ mercadona: adding }) });
       updateItem(body.item);
       render();
-      toast(adding ? 'Añadido a Mercadona' : 'Quitado de Mercadona');
+      toast(adding ? 'Movido a Mercadona' : 'Movido a General');
     } catch (error) { toast(error.message); }
   });
   li.querySelector('.edit').addEventListener('click', () => openEdit(item));
@@ -76,10 +76,10 @@ function itemElement(item) {
 function render() {
   const visibleItems = state.activeList === 'mercadona'
     ? state.items.filter((item) => item.mercadona)
-    : state.items;
+    : state.items.filter((item) => !item.mercadona);
   const pending = visibleItems.filter((item) => !item.completed);
   const purchased = visibleItems.filter((item) => item.completed);
-  const generalPending = state.items.filter((item) => !item.completed).length;
+  const generalPending = state.items.filter((item) => !item.mercadona && !item.completed).length;
   const mercadonaPending = state.items.filter((item) => item.mercadona && !item.completed).length;
   const isMercadona = state.activeList === 'mercadona';
 
@@ -97,7 +97,7 @@ function render() {
   $('#list-eyebrow').textContent = isMercadona ? 'LISTA SECUNDARIA' : 'MI LISTA';
   $('#item-name').placeholder = isMercadona ? 'Añadir a Mercadona…' : 'Añadir a la lista general…';
   $('#empty-title').textContent = isMercadona ? 'Nada pendiente en Mercadona' : 'Todo comprado';
-  $('#empty-copy').textContent = isMercadona ? 'Añade artículos desde aquí o desde la lista general' : 'Añade algo cuando lo necesites';
+  $('#empty-copy').textContent = isMercadona ? 'Añade algo aquí o mueve un artículo desde General' : 'Añade algo cuando lo necesites';
 
   document.querySelectorAll('.list-option').forEach((button) => {
     const active = button.dataset.list === state.activeList;

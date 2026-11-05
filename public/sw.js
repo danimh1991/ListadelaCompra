@@ -1,4 +1,4 @@
-const CACHE = 'lista-compra-v2';
+const CACHE = 'lista-compra-v3';
 const APP = ['./', 'app.css', 'app.js', 'manifest.webmanifest'];
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP))));
 self.addEventListener('activate', (event) => event.waitUntil(
