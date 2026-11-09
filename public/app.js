@@ -1,6 +1,9 @@
 const base = `${location.pathname.startsWith('/listacompra') ? '/listacompra' : ''}/api`;
 const state = { items: [], editingId: null, purchasedOpen: false, activeList: 'general' };
 const $ = (selector) => document.querySelector(selector);
+const LIST_CACHE_KEY = 'lista-compra:last-known-list:v1';
+const REFRESH_INTERVAL = 4 * 60 * 60 * 1000;
+let lastRefreshAt = 0;
 
 const storeIcon = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -20,6 +23,50 @@ async function request(path, options = {}) {
   return response.status === 204 ? null : response.json();
 }
 
+function readCachedList() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(LIST_CACHE_KEY));
+    if (!cached || cached.version !== 1 || !Array.isArray(cached.items)) return null;
+    return cached;
+  } catch {
+    return null;
+  }
+}
+
+function cacheList() {
+  try {
+    localStorage.setItem(LIST_CACHE_KEY, JSON.stringify({
+      version: 1,
+      items: state.items,
+      updatedAt: Date.now(),
+    }));
+  } catch {
+    // La lista sigue funcionando aunque el navegador no permita almacenamiento local.
+  }
+}
+
+async function refreshList({ notifyOnFailure = false } = {}) {
+  try {
+    const body = await request('/items');
+    state.items = body.items;
+    lastRefreshAt = Date.now();
+    cacheList();
+    render();
+    return true;
+  } catch (error) {
+    if (notifyOnFailure) {
+      toast(readCachedList() ? 'Sin conexión: mostrando la última lista guardada' : error.message);
+    }
+    return false;
+  }
+}
+
+function refreshIfStale() {
+  if (document.visibilityState === 'visible' && Date.now() - lastRefreshAt >= REFRESH_INTERVAL) {
+    refreshList();
+  }
+}
+
 function toast(message) {
   const element = $('#toast');
   element.textContent = message;
@@ -30,6 +77,7 @@ function toast(message) {
 
 function updateItem(updated) {
   state.items = state.items.map((item) => item.id === updated.id ? updated : item);
+  cacheList();
 }
 
 function itemElement(item) {
@@ -67,6 +115,7 @@ function itemElement(item) {
     try {
       await request(`/items/${item.id}`, { method: 'DELETE' });
       state.items = state.items.filter((current) => current.id !== item.id);
+      cacheList();
       render();
       toast('Artículo eliminado');
     } catch (error) { toast(error.message); }
@@ -130,6 +179,7 @@ $('#add-form').addEventListener('submit', async (event) => {
       body: JSON.stringify({ name, quantity: quantity || null, mercadona: state.activeList === 'mercadona' }),
     });
     state.items.unshift(body.item);
+    cacheList();
     render();
   } catch (error) {
     input.value = name;
@@ -168,8 +218,16 @@ $('#edit-form').addEventListener('submit', async (event) => {
   } catch (error) { toast(error.message); }
 });
 
-request('/items')
-  .then((body) => { state.items = body.items; render(); })
-  .catch((error) => { render(); toast(error.message); });
+const cachedList = readCachedList();
+if (cachedList) {
+  state.items = cachedList.items;
+  lastRefreshAt = cachedList.updatedAt || 0;
+}
+render();
+refreshList({ notifyOnFailure: true });
+
+window.addEventListener('online', () => refreshList());
+document.addEventListener('visibilitychange', refreshIfStale);
+setInterval(refreshIfStale, REFRESH_INTERVAL);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -9,6 +9,7 @@ Lista de la compra minimalista para Android y web, desplegada en Cloudflare Work
 - Marcar artículos como comprados y recuperarlos desde la sección «Comprados».
 - API REST pública para integraciones externas.
 - PWA instalable y APK Android ligero.
+- Última lista disponible sin conexión y sincronización al abrir, recuperar la conexión o cada 4 horas mientras la app está activa.
 - Datos en la base D1 compartida con AlaMesa, aislados en `listacompra_items`.
 
 ## API
