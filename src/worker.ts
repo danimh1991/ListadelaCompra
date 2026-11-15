@@ -5,6 +5,7 @@ interface Env {
 
 type ItemRow = {
   id: number;
+  client_id: string | null;
   name: string;
   quantity: string | null;
   completed: number;
@@ -28,6 +29,7 @@ function json(data: unknown, status = 200): Response {
 async function ensureSchema(db: D1Database): Promise<void> {
   await db.prepare(`CREATE TABLE IF NOT EXISTS listacompra_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id TEXT,
       name TEXT NOT NULL,
       quantity TEXT,
       completed INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
@@ -47,6 +49,16 @@ async function ensureSchema(db: D1Database): Promise<void> {
       if (!refreshed.results.some((column) => column.name === "mercadona")) throw error;
     }
   }
+  if (!columns.results.some((column) => column.name === "client_id")) {
+    try {
+      await db.prepare("ALTER TABLE listacompra_items ADD COLUMN client_id TEXT").run();
+    } catch (error) {
+      const refreshed = await db.prepare("PRAGMA table_info(listacompra_items)").all<{ name: string }>();
+      if (!refreshed.results.some((column) => column.name === "client_id")) throw error;
+    }
+  }
+  await db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_listacompra_items_client_id
+      ON listacompra_items (client_id) WHERE client_id IS NOT NULL`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_listacompra_items_completed
       ON listacompra_items (completed, created_at DESC)`).run();
   await db.prepare(`CREATE INDEX IF NOT EXISTS idx_listacompra_items_mercadona
@@ -54,7 +66,8 @@ async function ensureSchema(db: D1Database): Promise<void> {
 }
 
 function publicItem(row: ItemRow) {
-  return { ...row, completed: Boolean(row.completed), mercadona: Boolean(row.mercadona) };
+  const { client_id: _clientId, ...item } = row;
+  return { ...item, completed: Boolean(row.completed), mercadona: Boolean(row.mercadona) };
 }
 
 async function api(request: Request, env: Env, path: string): Promise<Response> {
@@ -74,7 +87,7 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
     if (list === "general") conditions.push("mercadona = 0");
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const result = await env.DB.prepare(
-      `SELECT id, name, quantity, completed, mercadona, created_at, updated_at, completed_at
+      `SELECT id, client_id, name, quantity, completed, mercadona, created_at, updated_at, completed_at
        FROM listacompra_items ${where}
        ORDER BY completed ASC, CASE WHEN completed = 0 THEN created_at END DESC,
                 CASE WHEN completed = 1 THEN completed_at END DESC`
@@ -83,14 +96,29 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
   }
 
   if (path === "/api/items" && request.method === "POST") {
-    const body = await request.json<{ name?: string; quantity?: string | null; mercadona?: boolean }>();
+    const body = await request.json<{
+      name?: string;
+      quantity?: string | null;
+      mercadona?: boolean;
+      clientId?: string;
+    }>();
     const name = body.name?.trim();
     if (!name) return json({ error: "El nombre es obligatorio" }, 400);
+    const clientId = body.clientId?.trim() || null;
     const result = await env.DB.prepare(
-      `INSERT INTO listacompra_items (name, quantity, mercadona) VALUES (?, ?, ?)
-       RETURNING id, name, quantity, completed, mercadona, created_at, updated_at, completed_at`
-    ).bind(name, body.quantity?.trim() || null, Number(Boolean(body.mercadona))).first<ItemRow>();
-    return json({ item: publicItem(result!) }, 201);
+      `INSERT OR IGNORE INTO listacompra_items (client_id, name, quantity, mercadona) VALUES (?, ?, ?, ?)
+       RETURNING id, client_id, name, quantity, completed, mercadona, created_at, updated_at, completed_at`
+    ).bind(clientId, name, body.quantity?.trim() || null, Number(Boolean(body.mercadona))).first<ItemRow>();
+    if (result) return json({ item: publicItem(result) }, 201);
+
+    if (clientId) {
+      const existing = await env.DB.prepare(
+        `SELECT id, client_id, name, quantity, completed, mercadona, created_at, updated_at, completed_at
+         FROM listacompra_items WHERE client_id = ?`
+      ).bind(clientId).first<ItemRow>();
+      if (existing) return json({ item: publicItem(existing) });
+    }
+    return json({ error: "No se pudo crear el artículo" }, 500);
   }
 
   const match = path.match(/^\/api\/items\/(\d+)$/);
@@ -98,7 +126,7 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
     const id = Number(match[1]);
     if (request.method === "PATCH") {
       const current = await env.DB.prepare(
-        "SELECT id, name, quantity, completed, mercadona, created_at, updated_at, completed_at FROM listacompra_items WHERE id = ?"
+        "SELECT id, client_id, name, quantity, completed, mercadona, created_at, updated_at, completed_at FROM listacompra_items WHERE id = ?"
       ).bind(id).first<ItemRow>();
       if (!current) return json({ error: "Artículo no encontrado" }, 404);
 
@@ -114,7 +142,7 @@ async function api(request: Request, env: Env, path: string): Promise<Response> 
         `UPDATE listacompra_items
          SET name = ?, quantity = ?, completed = ?, mercadona = ?, completed_at = ?, updated_at = CURRENT_TIMESTAMP
          WHERE id = ?
-         RETURNING id, name, quantity, completed, mercadona, created_at, updated_at, completed_at`
+         RETURNING id, client_id, name, quantity, completed, mercadona, created_at, updated_at, completed_at`
       ).bind(name, quantity, completed, mercadona, completedAt, id).first<ItemRow>();
       return json({ item: publicItem(result!) });
     }

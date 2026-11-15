@@ -5,8 +5,17 @@ const base = isBundledAndroid
 const state = { items: [], editingId: null, purchasedOpen: false, activeList: 'general' };
 const $ = (selector) => document.querySelector(selector);
 const LIST_CACHE_KEY = 'lista-compra:last-known-list:v1';
+const SYNC_QUEUE_KEY = 'lista-compra:pending-operations:v1';
 const REFRESH_INTERVAL = 4 * 60 * 60 * 1000;
 let lastRefreshAt = 0;
+let syncInProgress = false;
+
+class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
 
 const storeIcon = `
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -21,7 +30,7 @@ async function request(path, options = {}) {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.error || 'No se pudo completar la operación');
+    throw new ApiError(body.error || 'No se pudo completar la operación', response.status);
   }
   return response.status === 204 ? null : response.json();
 }
@@ -48,23 +57,146 @@ function cacheList() {
   }
 }
 
+function readPendingOperations() {
+  try {
+    const operations = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY));
+    return Array.isArray(operations) ? operations : [];
+  } catch {
+    return [];
+  }
+}
+
+let pendingOperations = readPendingOperations();
+
+function savePendingOperations() {
+  try {
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(pendingOperations));
+  } catch {
+    toast('No se pudo guardar el cambio en el teléfono');
+  }
+}
+
+function uniqueId() {
+  return crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function replaceItemId(oldId, newId, serverItem) {
+  state.items = state.items.map((item) => item.id === oldId
+    ? { ...serverItem, ...item, id: newId }
+    : item);
+  pendingOperations.forEach((operation) => {
+    if (operation.itemId === oldId) operation.itemId = newId;
+  });
+}
+
+function queueOperation(operation) {
+  pendingOperations.push({ operationId: uniqueId(), ...operation });
+  savePendingOperations();
+  cacheList();
+  render();
+
+  if (!navigator.onLine) {
+    toast('Guardado en el móvil; se sincronizará al volver la conexión');
+    return;
+  }
+  syncPendingOperations({ notifyOnFailure: true });
+}
+
+async function syncPendingOperations({ notifyOnFailure = false, announceSuccess = false } = {}) {
+  if (syncInProgress || !pendingOperations.length || !navigator.onLine) return false;
+  syncInProgress = true;
+  let synchronized = 0;
+
+  try {
+    while (pendingOperations.length) {
+      const operation = pendingOperations[0];
+      try {
+        if (operation.type === 'create') {
+          const body = await request('/items', {
+            method: 'POST',
+            body: JSON.stringify({ ...operation.item, clientId: operation.clientId }),
+          });
+          replaceItemId(operation.itemId, body.item.id, body.item);
+        } else if (operation.type === 'patch') {
+          await request(`/items/${operation.itemId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(operation.changes),
+          });
+        } else if (operation.type === 'delete') {
+          await request(`/items/${operation.itemId}`, { method: 'DELETE' });
+        }
+
+        pendingOperations.shift();
+        savePendingOperations();
+        cacheList();
+        synchronized += 1;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404
+            && (operation.type === 'patch' || operation.type === 'delete')) {
+          state.items = state.items.filter((item) => item.id !== operation.itemId);
+          pendingOperations.shift();
+          savePendingOperations();
+          cacheList();
+          synchronized += 1;
+          continue;
+        }
+
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+          if (operation.type === 'create') {
+            state.items = state.items.filter((item) => item.id !== operation.itemId);
+          }
+          pendingOperations.shift();
+          savePendingOperations();
+          cacheList();
+          render();
+          toast(error.message);
+          continue;
+        }
+
+        if (notifyOnFailure) {
+          toast('Cambios guardados en el móvil; el servidor no está disponible');
+        }
+        break;
+      }
+    }
+  } finally {
+    syncInProgress = false;
+  }
+
+  if (!pendingOperations.length && synchronized) {
+    await refreshList();
+    if (announceSuccess) {
+      toast(synchronized === 1 ? 'Cambio sincronizado' : `${synchronized} cambios sincronizados`);
+    }
+  }
+  return synchronized > 0;
+}
+
 async function refreshList({ notifyOnFailure = false } = {}) {
+  if (pendingOperations.length) return false;
   try {
     const body = await request('/items');
+    if (!Array.isArray(body.items) || pendingOperations.length) return false;
     state.items = body.items;
     lastRefreshAt = Date.now();
     cacheList();
     render();
     return true;
-  } catch (error) {
+  } catch {
     if (notifyOnFailure) {
-      toast(readCachedList() ? 'Sin conexión: mostrando la última lista guardada' : error.message);
+      toast(readCachedList()
+        ? 'Sin conexión: mostrando la última lista guardada'
+        : 'No se pudo cargar la lista');
     }
     return false;
   }
 }
 
 function refreshIfStale() {
+  if (pendingOperations.length) {
+    syncPendingOperations();
+    return;
+  }
   if (document.visibilityState === 'visible' && Date.now() - lastRefreshAt >= REFRESH_INTERVAL) {
     refreshList();
   }
@@ -78,8 +210,8 @@ function toast(message) {
   toast.timer = setTimeout(() => element.classList.remove('show'), 2200);
 }
 
-function updateItem(updated) {
-  state.items = state.items.map((item) => item.id === updated.id ? updated : item);
+function updateLocalItem(id, changes) {
+  state.items = state.items.map((item) => item.id === id ? { ...item, ...changes } : item);
   cacheList();
 }
 
@@ -97,31 +229,21 @@ function itemElement(item) {
     </span>`;
   li.querySelector('.item-name').textContent = item.name;
   if (item.quantity) li.querySelector('.item-quantity').textContent = item.quantity;
-  li.querySelector('input').addEventListener('change', async (event) => {
-    try {
-      const body = await request(`/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ completed: event.target.checked }) });
-      updateItem(body.item);
-      render();
-    } catch (error) { event.target.checked = !event.target.checked; toast(error.message); }
+  li.querySelector('input').addEventListener('change', (event) => {
+    const completed = event.target.checked;
+    updateLocalItem(item.id, { completed });
+    queueOperation({ type: 'patch', itemId: item.id, changes: { completed } });
   });
-  li.querySelector('.mercadona-action').addEventListener('click', async () => {
+  li.querySelector('.mercadona-action').addEventListener('click', () => {
     const adding = !item.mercadona;
-    try {
-      const body = await request(`/items/${item.id}`, { method: 'PATCH', body: JSON.stringify({ mercadona: adding }) });
-      updateItem(body.item);
-      render();
-      toast(adding ? 'Movido a Mercadona' : 'Movido a General');
-    } catch (error) { toast(error.message); }
+    updateLocalItem(item.id, { mercadona: adding });
+    queueOperation({ type: 'patch', itemId: item.id, changes: { mercadona: adding } });
   });
   li.querySelector('.edit').addEventListener('click', () => openEdit(item));
-  li.querySelector('.delete').addEventListener('click', async () => {
-    try {
-      await request(`/items/${item.id}`, { method: 'DELETE' });
-      state.items = state.items.filter((current) => current.id !== item.id);
-      cacheList();
-      render();
-      toast('Artículo eliminado');
-    } catch (error) { toast(error.message); }
+  li.querySelector('.delete').addEventListener('click', () => {
+    state.items = state.items.filter((current) => current.id !== item.id);
+    queueOperation({ type: 'delete', itemId: item.id });
+    toast('Artículo eliminado');
   });
   return li;
 }
@@ -167,7 +289,7 @@ function openEdit(item) {
   $('#edit-name').focus();
 }
 
-$('#add-form').addEventListener('submit', async (event) => {
+$('#add-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const input = $('#item-name');
   const quantityInput = $('#item-quantity');
@@ -176,19 +298,25 @@ $('#add-form').addEventListener('submit', async (event) => {
   if (!name) return;
   input.value = '';
   quantityInput.value = '';
-  try {
-    const body = await request('/items', {
-      method: 'POST',
-      body: JSON.stringify({ name, quantity: quantity || null, mercadona: state.activeList === 'mercadona' }),
-    });
-    state.items.unshift(body.item);
-    cacheList();
-    render();
-  } catch (error) {
-    input.value = name;
-    quantityInput.value = quantity;
-    toast(error.message);
-  }
+  const clientId = uniqueId();
+  const temporaryId = `offline:${clientId}`;
+  const now = new Date().toISOString();
+  const item = {
+    id: temporaryId,
+    name,
+    quantity: quantity || null,
+    completed: false,
+    mercadona: state.activeList === 'mercadona',
+    created_at: now,
+    updated_at: now,
+    completed_at: null,
+  };
+  state.items.unshift(item);
+  queueOperation({ type: 'create', itemId: temporaryId, clientId, item: {
+    name: item.name,
+    quantity: item.quantity,
+    mercadona: item.mercadona,
+  } });
 });
 
 document.querySelectorAll('.list-option').forEach((button) => {
@@ -205,20 +333,20 @@ $('#purchased-toggle').addEventListener('click', () => {
   render();
 });
 
-$('#edit-form').addEventListener('submit', async (event) => {
+$('#edit-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const name = $('#edit-name').value.trim();
   const quantity = $('#edit-quantity').value.trim();
   if (!name) return;
-  try {
-    const body = await request(`/items/${state.editingId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ name, quantity: quantity || null }),
-    });
-    updateItem(body.item);
-    $('#edit-dialog').close();
-    render();
-  } catch (error) { toast(error.message); }
+  const current = state.items.find((item) => item.id === state.editingId);
+  if (!current) return;
+  const changes = {};
+  if (name !== current.name) changes.name = name;
+  if ((quantity || null) !== current.quantity) changes.quantity = quantity || null;
+  $('#edit-dialog').close();
+  if (!Object.keys(changes).length) return;
+  updateLocalItem(state.editingId, changes);
+  queueOperation({ type: 'patch', itemId: state.editingId, changes });
 });
 
 const cachedList = readCachedList();
@@ -227,9 +355,18 @@ if (cachedList) {
   lastRefreshAt = cachedList.updatedAt || 0;
 }
 render();
-refreshList({ notifyOnFailure: true });
+if (pendingOperations.length) {
+  syncPendingOperations({ notifyOnFailure: true, announceSuccess: true });
+} else {
+  refreshList({ notifyOnFailure: true });
+}
 
-window.addEventListener('online', () => refreshList());
+window.addEventListener('online', () => {
+  if (pendingOperations.length) {
+    syncPendingOperations({ notifyOnFailure: true, announceSuccess: true });
+  }
+  else refreshList();
+});
 document.addEventListener('visibilitychange', refreshIfStale);
 setInterval(refreshIfStale, REFRESH_INTERVAL);
 

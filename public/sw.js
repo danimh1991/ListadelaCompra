@@ -1,4 +1,4 @@
-const CACHE = 'lista-compra-v5';
+const CACHE = 'lista-compra-v6';
 const DATA_CACHE = 'lista-compra-data-v1';
 const APP = ['./', 'app.css', 'app.js', 'manifest.webmanifest'];
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP))));

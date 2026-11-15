@@ -10,6 +10,7 @@ Lista de la compra minimalista para Android y web, desplegada en Cloudflare Work
 - API REST pública para integraciones externas.
 - PWA instalable y APK Android con la interfaz empaquetada para poder arrancar sin conexión.
 - Última lista disponible sin conexión y sincronización al abrir, recuperar la conexión o cada 4 horas mientras la app está activa.
+- Edición completa sin conexión mediante una cola persistente que se sincroniza automáticamente y evita altas duplicadas.
 - Datos en la base D1 compartida con AlaMesa, aislados en `listacompra_items`.
 
 ## API
@@ -49,4 +50,6 @@ La rama `main` está conectada a **Cloudflare Workers Builds**. Cada commit ejec
 ## Android
 
 El proyecto de `android/` contiene una aplicación WebView que sirve la interfaz incluida en el propio APK y consulta la API pública cuando hay conexión. Así puede arrancar sin red y leer la última lista guardada en el almacenamiento local. GitHub Actions compila un APK de depuración en cada commit y lo publica como artefacto del workflow.
+
+Las operaciones realizadas sin conexión se aplican de inmediato en el dispositivo y se reproducen en orden al recuperar el servidor. Las altas utilizan un identificador idempotente, los cambios parciales conservan campos modificados por otros clientes y, si dos clientes cambian el mismo campo, prevalece la última operación sincronizada.
 
