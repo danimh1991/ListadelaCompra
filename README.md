@@ -8,7 +8,7 @@ Lista de la compra minimalista para Android y web, desplegada en Cloudflare Work
 - Mover artículos entre las listas excluyentes «General» y «Mercadona» sin crear duplicados.
 - Marcar artículos como comprados y recuperarlos desde la sección «Comprados».
 - API REST pública para integraciones externas.
-- PWA instalable y APK Android ligero.
+- PWA instalable y APK Android con la interfaz empaquetada para poder arrancar sin conexión.
 - Última lista disponible sin conexión y sincronización al abrir, recuperar la conexión o cada 4 horas mientras la app está activa.
 - Datos en la base D1 compartida con AlaMesa, aislados en `listacompra_items`.
 
@@ -48,5 +48,5 @@ La rama `main` está conectada a **Cloudflare Workers Builds**. Cada commit ejec
 
 ## Android
 
-El proyecto de `android/` contiene una aplicación WebView que abre la URL pública. GitHub Actions compila un APK de depuración en cada commit y lo publica como artefacto del workflow.
+El proyecto de `android/` contiene una aplicación WebView que sirve la interfaz incluida en el propio APK y consulta la API pública cuando hay conexión. Así puede arrancar sin red y leer la última lista guardada en el almacenamiento local. GitHub Actions compila un APK de depuración en cada commit y lo publica como artefacto del workflow.
 

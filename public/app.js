@@ -1,4 +1,7 @@
-const base = `${location.pathname.startsWith('/listacompra') ? '/listacompra' : ''}/api`;
+const isBundledAndroid = location.hostname === 'appassets.androidplatform.net';
+const base = isBundledAndroid
+  ? 'https://danieta.com/listacompra/api'
+  : `${location.pathname.startsWith('/listacompra') ? '/listacompra' : ''}/api`;
 const state = { items: [], editingId: null, purchasedOpen: false, activeList: 'general' };
 const $ = (selector) => document.querySelector(selector);
 const LIST_CACHE_KEY = 'lista-compra:last-known-list:v1';
@@ -230,4 +233,6 @@ window.addEventListener('online', () => refreshList());
 document.addEventListener('visibilitychange', refreshIfStale);
 setInterval(refreshIfStale, REFRESH_INTERVAL);
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+if (!isBundledAndroid && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
